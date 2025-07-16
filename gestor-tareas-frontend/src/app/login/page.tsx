@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -24,15 +24,20 @@ export default function LoginPage() {
                 password,
             });
 
-            // Usa la función login del contexto para actualizar el estado global
             login(response.data.token);
-
-            // Redirige al usuario al dashboard
             router.push('/dashboard');
 
-        } catch (err: any) {
+        } catch (err) { // Por defecto, err es de tipo 'unknown'
             console.error('Error en el login:', err);
-            setError(err.response?.data?.message || 'Error al iniciar sesión.');
+
+            // Verificamos si el error es una instancia de AxiosError
+            if (isAxiosError(err)) {
+                // Ahora TypeScript sabe que 'err.response' existe y es seguro accederlo
+                setError(err.response?.data?.message || 'Error del servidor.');
+            } else {
+                // Manejo para otros tipos de errores
+                setError('Ha ocurrido un error inesperado.');
+            }
         }
     };
 

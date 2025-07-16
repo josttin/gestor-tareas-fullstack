@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
 
 // Tipos para los datos
@@ -30,7 +30,7 @@ export default function DashboardPage() {
     const [newTask, setNewTask] = useState({ titulo: '', descripcion: '', asignado_id: '' });
 
     // --- FUNCIÓN PARA CARGAR DATOS ---
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             if (user?.rol === 'jefe') {
                 const [tasksRes, employeesRes] = await Promise.all([
@@ -40,20 +40,19 @@ export default function DashboardPage() {
                 setTasks(tasksRes.data);
                 setEmployees(employeesRes.data);
             } else if (user?.rol === 'empleado') {
-                // El empleado solo pide sus propias tareas
                 const tasksRes = await api.get('/tareas/mis-tareas');
                 setTasks(tasksRes.data);
             }
         } catch (error) {
             console.error("Error al cargar los datos del dashboard", error);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
-        if (user) { // Nos aseguramos que el usuario exista antes de cargar datos
+        if (user) {
             fetchData();
         }
-    }, [user]);
+    }, [user, fetchData]);
 
     // --- NUEVA FUNCIÓN PARA MANEJAR EL FORMULARIO ---
     const handleCreateTask = async (e: React.FormEvent) => {
