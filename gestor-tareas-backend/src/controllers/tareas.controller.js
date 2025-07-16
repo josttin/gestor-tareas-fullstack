@@ -3,11 +3,8 @@ import pool from "../config/db.js";
 
 export const crearTarea = async (req, res) => {
   try {
-    // 1. Obtener los datos de la tarea del cuerpo de la petición
     const { titulo, descripcion, fecha_limite, asignado_id, departamento_id } =
       req.body;
-
-    // El ID del jefe que crea la tarea lo tomamos del token
     const creador_id = req.user.id;
 
     if (!titulo || !asignado_id) {
@@ -16,9 +13,9 @@ export const crearTarea = async (req, res) => {
         .json({ message: "El título y el ID del asignado son obligatorios." });
     }
 
-    // 2. Insertar la nueva tarea en la base de datos
-    const [result] = await pool.query(
-      "INSERT INTO tareas (titulo, descripcion, fecha_limite, creador_id, asignado_id, departamento_id) VALUES (?, ?, ?, ?, ?, ?)",
+    // Corregido: Usa $n, añade RETURNING id y maneja el resultado
+    const result = await pool.query(
+      "INSERT INTO tareas (titulo, descripcion, fecha_limite, creador_id, asignado_id, departamento_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
       [
         titulo,
         descripcion,
@@ -29,9 +26,8 @@ export const crearTarea = async (req, res) => {
       ]
     );
 
-    // 3. Responder con la nueva tarea creada
     res.status(201).json({
-      id: result.insertId,
+      id: result.rows[0].id,
       titulo,
       descripcion,
       creador_id,
@@ -48,11 +44,11 @@ export const crearTarea = async (req, res) => {
 
 export const verMisTareas = async (req, res) => {
   try {
-    // El ID del usuario logueado lo obtenemos del token gracias al middleware
     const usuarioId = req.user.id;
 
-    const [tareas] = await pool.query(
-      "SELECT * FROM tareas WHERE asignado_id = ?",
+    // Corregido: Usa $1 y maneja el resultado de pg
+    const { rows: tareas } = await pool.query(
+      "SELECT * FROM tareas WHERE asignado_id = $1",
       [usuarioId]
     );
 
@@ -67,9 +63,9 @@ export const verMisTareas = async (req, res) => {
 
 export const actualizarEstadoTarea = async (req, res) => {
   try {
-    const { id } = req.params; // Obtenemos el ID de la tarea de la URL
-    const { estado } = req.body; // Obtenemos el nuevo estado del cuerpo de la petición
-    const usuarioId = req.user.id; // Obtenemos el ID del usuario del token
+    const { id } = req.params;
+    const { estado } = req.body;
+    const usuarioId = req.user.id;
 
     if (!estado) {
       return res
@@ -77,25 +73,28 @@ export const actualizarEstadoTarea = async (req, res) => {
         .json({ message: "El campo estado es obligatorio." });
     }
 
-    // 1. Verificar que la tarea existe y a quién pertenece
-    const [tareas] = await pool.query("SELECT * FROM tareas WHERE id = ?", [
-      id,
-    ]);
+    // Corregido: Usa $1 y maneja el resultado de pg
+    const { rows: tareas } = await pool.query(
+      "SELECT * FROM tareas WHERE id = $1",
+      [id]
+    );
     if (tareas.length === 0) {
       return res.status(404).json({ message: "Tarea no encontrada." });
     }
 
     const tarea = tareas[0];
 
-    // 2. Autorización: solo el usuario asignado puede cambiar el estado
     if (tarea.asignado_id !== usuarioId) {
       return res
         .status(403)
         .json({ message: "Acceso denegado. No puedes modificar esta tarea." });
     }
 
-    // 3. Actualizar el estado de la tarea
-    await pool.query("UPDATE tareas SET estado = ? WHERE id = ?", [estado, id]);
+    // Corregido: Usa $1, $2
+    await pool.query("UPDATE tareas SET estado = $1 WHERE id = $2", [
+      estado,
+      id,
+    ]);
 
     res.json({ message: "Estado de la tarea actualizado exitosamente." });
   } catch (error) {
@@ -108,27 +107,27 @@ export const actualizarEstadoTarea = async (req, res) => {
 
 export const eliminarTarea = async (req, res) => {
   try {
-    const { id } = req.params; // ID de la tarea desde la URL
-    const usuarioId = req.user.id; // ID del usuario desde el token
+    const { id } = req.params;
+    const usuarioId = req.user.id;
 
-    // 1. Verificar que la tarea existe
-    const [tareas] = await pool.query("SELECT * FROM tareas WHERE id = ?", [
-      id,
-    ]);
+    // Corregido: Usa $1 y maneja el resultado de pg
+    const { rows: tareas } = await pool.query(
+      "SELECT * FROM tareas WHERE id = $1",
+      [id]
+    );
     if (tareas.length === 0) {
       return res.status(404).json({ message: "Tarea no encontrada." });
     }
     const tarea = tareas[0];
 
-    // 2. Autorización: solo el jefe que la creó puede eliminarla
     if (tarea.creador_id !== usuarioId) {
       return res.status(403).json({
         message: "Acceso denegado. No tienes permiso para eliminar esta tarea.",
       });
     }
 
-    // 3. Eliminar la tarea
-    await pool.query("DELETE FROM tareas WHERE id = ?", [id]);
+    // Corregido: Usa $1
+    await pool.query("DELETE FROM tareas WHERE id = $1", [id]);
 
     res.json({ message: "Tarea eliminada exitosamente." });
   } catch (error) {
@@ -141,8 +140,8 @@ export const eliminarTarea = async (req, res) => {
 
 export const verTodasLasTareas = async (req, res) => {
   try {
-    // Usamos un JOIN para traer también el nombre del usuario asignado
-    const [tareas] = await pool.query(`
+    // Corregido: Maneja el resultado de pg
+    const { rows: tareas } = await pool.query(`
       SELECT 
         t.*, 
         u.nombre_completo as nombre_asignado 
