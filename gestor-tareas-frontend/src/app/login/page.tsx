@@ -1,4 +1,5 @@
 // src/app/login/page.tsx
+import api from '@/lib/api';
 'use client';
 
 import { useState } from 'react';
@@ -7,7 +8,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-    console.log('API URL USADA:', process.env.NEXT_PUBLIC_API_URL);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -20,7 +20,7 @@ export default function LoginPage() {
         setError('');
 
         try {
-            const response = await axios.post('http://localhost:3001/api/usuarios/login', {
+            const response = await api.post('/usuarios/login', {
                 email,
                 password,
             });
