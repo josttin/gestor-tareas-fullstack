@@ -1,8 +1,8 @@
 // src/app/login/page.tsx
-import api from '@/lib/api';
 'use client';
 
 import { useState } from 'react';
+import api from '@/lib/api';
 import axios, { isAxiosError } from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
