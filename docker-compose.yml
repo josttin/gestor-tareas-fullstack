@@ -1,0 +1,18 @@
+# docker-compose.yml
+version: "3.8"
+services:
+  db:
+    image: postgres:15
+    container_name: gestor_db_local
+    restart: always
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: miusuario
+      POSTGRES_PASSWORD: micontraseña
+      POSTGRES_DB: gestor_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
