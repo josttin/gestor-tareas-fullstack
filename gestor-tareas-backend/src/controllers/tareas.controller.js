@@ -3,8 +3,15 @@ import pool from "../config/db.js";
 
 export const crearTarea = async (req, res) => {
   try {
-    const { titulo, descripcion, fecha_limite, asignado_id, departamento_id } =
-      req.body;
+    // Añadimos sub_fechas a la desestructuración
+    const {
+      titulo,
+      descripcion,
+      fecha_limite,
+      asignado_id,
+      departamento_id,
+      sub_fechas,
+    } = req.body;
     const creador_id = req.user.id;
 
     if (!titulo || (!asignado_id && !departamento_id)) {
@@ -14,16 +21,17 @@ export const crearTarea = async (req, res) => {
       });
     }
 
-    // Corregido: Usa $n, añade RETURNING id y maneja el resultado
     const result = await pool.query(
-      "INSERT INTO tareas (titulo, descripcion, fecha_limite, creador_id, asignado_id, departamento_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+      // Añadimos la nueva columna a la consulta
+      "INSERT INTO tareas (titulo, descripcion, fecha_limite, creador_id, asignado_id, departamento_id, sub_fechas) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
       [
         titulo,
         descripcion,
         fecha_limite,
         creador_id,
-        asignado_id,
+        asignado_id || null,
         departamento_id || null,
+        sub_fechas || null, // Aceptamos las sub_fechas
       ]
     );
 
@@ -141,15 +149,58 @@ export const eliminarTarea = async (req, res) => {
 
 export const verTodasLasTareas = async (req, res) => {
   try {
-    // Corregido: Maneja el resultado de pg
-    const { rows: tareas } = await pool.query(`
+    // 1. Extraer parámetros de la URL (query params)
+    const { page = 1, limit = 10, empleadoId, departamentoId } = req.query;
+    const offset = (page - 1) * limit;
+
+    // 2. Construir la consulta dinámicamente
+    let query = `
       SELECT 
         t.*, 
         u.nombre_completo as nombre_asignado 
       FROM tareas t 
       LEFT JOIN usuarios u ON t.asignado_id = u.id
-    `);
-    res.json(tareas);
+    `;
+    const whereClauses = [];
+    const queryParams = [];
+
+    if (empleadoId) {
+      queryParams.push(empleadoId);
+      whereClauses.push(`t.asignado_id = $${queryParams.length}`);
+    }
+    if (departamentoId) {
+      queryParams.push(departamentoId);
+      whereClauses.push(`t.departamento_id = $${queryParams.length}`);
+    }
+
+    if (whereClauses.length > 0) {
+      query += ` WHERE ${whereClauses.join(" AND ")}`;
+    }
+
+    query += ` ORDER BY t.fecha_creacion DESC LIMIT $${
+      queryParams.length + 1
+    } OFFSET $${queryParams.length + 2}`;
+    queryParams.push(limit, offset);
+
+    // 3. Ejecutar la consulta para obtener las tareas
+    const tareasResult = await pool.query(query, queryParams);
+
+    // 4. Hacer una segunda consulta para contar el total de páginas
+    let countQuery = `SELECT COUNT(*) FROM tareas t`;
+    if (whereClauses.length > 0) {
+      // Reusamos los WHERE de la consulta principal, pero sin los params de limit/offset
+      countQuery += ` WHERE ${whereClauses.join(" AND ")}`;
+    }
+    const countResult = await pool.query(countQuery, queryParams.slice(0, -2));
+    const totalTareas = parseInt(countResult.rows[0].count, 10);
+    const totalPages = Math.ceil(totalTareas / limit);
+
+    // 5. Enviar la respuesta completa
+    res.json({
+      tareas: tareasResult.rows,
+      currentPage: parseInt(page, 10),
+      totalPages,
+    });
   } catch (error) {
     console.error(error);
     res
@@ -170,5 +221,35 @@ export const getTareaById = async (req, res) => {
     res.json(rows[0]);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener la tarea." });
+  }
+};
+
+// Devuelve las tareas asignadas al departamento del usuario logueado
+export const getTareasPorDepartamento = async (req, res) => {
+  // Log de entrada a la función
+  console.log("--- ENTRANDO A getTareasPorDepartamento ---");
+  try {
+    console.log("Usuario que llegó al controlador:", req.user);
+    const departamentoId = req.user.departamento_id;
+
+    console.log(`Departamento ID del usuario: ${departamentoId}`);
+
+    if (!departamentoId) {
+      console.log("El usuario no tiene departamento, devolviendo array vacío.");
+      return res.json([]);
+    }
+
+    console.log(`Ejecutando consulta para departamento ID: ${departamentoId}`);
+    const { rows } = await pool.query(
+      "SELECT * FROM tareas WHERE departamento_id = $1",
+      [departamentoId]
+    );
+    console.log(`Consulta exitosa, se encontraron ${rows.length} tareas.`);
+    res.json(rows);
+  } catch (error) {
+    console.error("--- ERROR DENTRO de getTareasPorDepartamento ---:", error);
+    res
+      .status(500)
+      .json({ message: "Error al obtener las tareas del departamento." });
   }
 };

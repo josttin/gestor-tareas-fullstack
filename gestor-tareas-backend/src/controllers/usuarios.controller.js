@@ -73,6 +73,7 @@ export const loginUsuario = async (req, res) => {
       id: user.id,
       rol: user.rol,
       nombre: user.nombre_completo,
+      departamento_id: user.departamento_id,
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -104,7 +105,7 @@ export const obtenerEmpleados = async (req, res) => {
   try {
     // Corregido: Maneja el resultado de pg
     const { rows: empleados } = await pool.query(
-      "SELECT id, nombre_completo FROM usuarios WHERE rol = 'empleado'"
+      "SELECT id, nombre_completo, departamento_id FROM usuarios WHERE rol = 'empleado'"
     );
     res.json(empleados);
   } catch (error) {
@@ -117,18 +118,44 @@ export const obtenerEmpleados = async (req, res) => {
 
 export const asignarDepartamento = async (req, res) => {
   const { usuarioId } = req.params;
-  const { departamento_id } = req.body; // Puede ser un ID o null
+  const { departamento_id } = req.body;
+
+  // --- LOGS PARA DEPURACIÓN ---
+  console.log("--- Intentando asignar departamento ---");
+  console.log(
+    "ID de Usuario a modificar:",
+    usuarioId,
+    "(tipo: " + typeof usuarioId + ")"
+  );
+  console.log(
+    "Nuevo ID de Departamento:",
+    departamento_id,
+    "(tipo: " + typeof departamento_id + ")"
+  );
+  // ---------------------------
 
   try {
-    const { rows } = await pool.query(
+    const result = await pool.query(
       "UPDATE usuarios SET departamento_id = $1 WHERE id = $2 AND rol = 'empleado' RETURNING id, nombre_completo, departamento_id",
       [departamento_id, usuarioId]
     );
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "Empleado no encontrado." });
+
+    // --- MÁS LOGS ---
+    console.log("Filas afectadas por el UPDATE:", result.rowCount);
+    console.log("Datos devueltos por la BD:", result.rows);
+    // ------------------
+
+    if (result.rowCount === 0) {
+      console.log("El UPDATE no encontró al empleado o no realizó cambios.");
+      return res
+        .status(404)
+        .json({ message: "Empleado no encontrado o datos idénticos." });
     }
-    res.json(rows[0]);
+    res.json(result.rows[0]);
   } catch (error) {
+    // --- LOG DE ERROR ---
+    console.error("ERROR DETALLADO en asignarDepartamento:", error);
+    // --------------------
     res.status(500).json({ message: "Error al asignar el departamento." });
   }
 };

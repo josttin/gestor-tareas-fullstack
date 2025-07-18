@@ -3,8 +3,9 @@ import pool from "../config/db.js";
 
 // Empleado: Crear una nueva solicitud
 export const createSolicitud = async (req, res) => {
-  const { tipo, motivo, tarea_id } = req.body;
-  const solicitante_id = req.user.id; // ID viene del token del empleado logueado
+  // Añadimos fecha_sugerida
+  const { tipo, motivo, tarea_id, fecha_sugerida } = req.body;
+  const solicitante_id = req.user.id;
 
   if (!tipo || !motivo) {
     return res
@@ -14,8 +15,9 @@ export const createSolicitud = async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      "INSERT INTO solicitudes (tipo, motivo, tarea_id, solicitante_id) VALUES ($1, $2, $3, $4) RETURNING *",
-      [tipo, motivo, tarea_id || null, solicitante_id]
+      // Añadimos la nueva columna
+      "INSERT INTO solicitudes (tipo, motivo, tarea_id, solicitante_id, fecha_sugerida) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [tipo, motivo, tarea_id || null, solicitante_id, fecha_sugerida || null]
     );
     res.status(201).json(rows[0]);
   } catch (error) {
@@ -57,7 +59,8 @@ export const getAllSolicitudes = async (req, res) => {
 // Jefe: Actualizar el estado de una solicitud (aprobar/rechazar)
 export const updateSolicitudStatus = async (req, res) => {
   const { id } = req.params;
-  const { estado } = req.body;
+  // El jefe ahora puede enviar una fecha_limite_final
+  const { estado, fecha_limite_final } = req.body;
 
   if (!estado || (estado !== "aprobada" && estado !== "rechazada")) {
     return res
@@ -65,17 +68,37 @@ export const updateSolicitudStatus = async (req, res) => {
       .json({ message: "El estado debe ser 'aprobada' o 'rechazada'." });
   }
 
+  const client = await pool.connect();
+
   try {
-    const { rows } = await pool.query(
+    await client.query("BEGIN");
+
+    const solicitudResult = await client.query(
       "UPDATE solicitudes SET estado = $1 WHERE id = $2 RETURNING *",
       [estado, id]
     );
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "Solicitud no encontrada." });
+
+    if (solicitudResult.rows.length === 0) {
+      throw new Error("Solicitud no encontrada.");
     }
-    res.json(rows[0]);
+
+    const solicitud = solicitudResult.rows[0];
+
+    // Si se aprueba Y se proporciona una fecha final, actualizamos la tarea
+    if (estado === "aprobada" && fecha_limite_final && solicitud.tarea_id) {
+      await client.query("UPDATE tareas SET fecha_limite = $1 WHERE id = $2", [
+        fecha_limite_final,
+        solicitud.tarea_id,
+      ]);
+    }
+
+    await client.query("COMMIT");
+    res.json(solicitud);
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error(error);
     res.status(500).json({ message: "Error al actualizar la solicitud." });
+  } finally {
+    client.release();
   }
 };
