@@ -7,6 +7,8 @@ import { testConnection } from "./config/db.js";
 // --- Importar Rutas ---
 import userRoutes from "./routes/usuarios.routes.js";
 import taskRoutes from "./routes/tareas.routes.js";
+import deptoRoutes from "./routes/departamentos.routes.js";
+import solicitudRoutes from "./routes/solicitudes.routes.js";
 
 // Crear la app de Express
 const app = express();
@@ -27,6 +29,8 @@ app.get("/", (req, res) => {
 // --- Usar Rutas ---
 app.use("/api/usuarios", userRoutes);
 app.use("/api/tareas", taskRoutes);
+app.use("/api/departamentos", deptoRoutes);
+app.use("/api/solicitudes", solicitudRoutes);
 
 // Iniciar el servidor
 app.listen(PORT, () => {
