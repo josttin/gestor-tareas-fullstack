@@ -7,10 +7,11 @@ export const crearTarea = async (req, res) => {
       req.body;
     const creador_id = req.user.id;
 
-    if (!titulo || !asignado_id) {
-      return res
-        .status(400)
-        .json({ message: "El título y el ID del asignado son obligatorios." });
+    if (!titulo || (!asignado_id && !departamento_id)) {
+      return res.status(400).json({
+        message:
+          "El título y un asignado (empleado o departamento) son obligatorios.",
+      });
     }
 
     // Corregido: Usa $n, añade RETURNING id y maneja el resultado
@@ -154,5 +155,20 @@ export const verTodasLasTareas = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error en el servidor al obtener todas las tareas." });
+  }
+};
+
+export const getTareaById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query("SELECT * FROM tareas WHERE id = $1", [
+      id,
+    ]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Tarea no encontrada." });
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener la tarea." });
   }
 };

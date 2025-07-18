@@ -114,3 +114,21 @@ export const obtenerEmpleados = async (req, res) => {
       .json({ message: "Error al obtener la lista de empleados." });
   }
 };
+
+export const asignarDepartamento = async (req, res) => {
+  const { usuarioId } = req.params;
+  const { departamento_id } = req.body; // Puede ser un ID o null
+
+  try {
+    const { rows } = await pool.query(
+      "UPDATE usuarios SET departamento_id = $1 WHERE id = $2 AND rol = 'empleado' RETURNING id, nombre_completo, departamento_id",
+      [departamento_id, usuarioId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Empleado no encontrado." });
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: "Error al asignar el departamento." });
+  }
+};

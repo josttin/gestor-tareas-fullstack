@@ -6,6 +6,7 @@ import {
   actualizarEstadoTarea,
   eliminarTarea,
   verTodasLasTareas,
+  getTareaById,
 } from "../controllers/tareas.controller.js";
 import { protegerRuta, autorizarJefe } from "../middleware/auth.middleware.js";
 
@@ -20,5 +21,7 @@ router.get("/mis-tareas", protegerRuta, verMisTareas);
 router.put("/:id", protegerRuta, actualizarEstadoTarea);
 
 router.delete("/:id", protegerRuta, autorizarJefe, eliminarTarea);
+
+router.get("/:id", protegerRuta, getTareaById);
 
 export default router;
