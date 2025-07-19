@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import axios, { isAxiosError } from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -71,6 +72,14 @@ export default function LoginPage() {
                     <button type="submit" className="w-full px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-700 focus:outline-none focus:shadow-outline">
                         Entrar
                     </button>
+                </div>
+                <div className="text-center mt-4">
+                    <p className="text-sm">
+                        ¿No tienes una cuenta?{' '}
+                        <Link href="/registro" className="font-medium text-blue-600 hover:underline">
+                            Regístrate aquí
+                        </Link>
+                    </p>
                 </div>
             </form>
         </div>

@@ -10,6 +10,7 @@ import taskRoutes from "./routes/tareas.routes.js";
 import deptoRoutes from "./routes/departamentos.routes.js";
 import solicitudRoutes from "./routes/solicitudes.routes.js";
 import comentarioRoutes from "./routes/comentarios.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
 // Crear la app de Express
 const app = express();
@@ -33,6 +34,7 @@ app.use("/api/tareas", taskRoutes);
 app.use("/api/departamentos", deptoRoutes);
 app.use("/api/solicitudes", solicitudRoutes);
 app.use("/api", comentarioRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Iniciar el servidor
 app.listen(PORT, () => {
