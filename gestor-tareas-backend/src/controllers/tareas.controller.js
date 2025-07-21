@@ -117,7 +117,7 @@ export const actualizarEstadoTarea = async (req, res) => {
 
     // Si tiene permiso, actualiza la tarea
     let query =
-      "UPDATE tareas SET estado = $1, fecha_completada = CASE WHEN $1 = 'completada' THEN NOW() ELSE NULL END WHERE id = $2";
+      "UPDATE tareas SET estado = $1, fecha_completada = CASE WHEN $1 = 'completada'::varchar THEN NOW() ELSE NULL END WHERE id = $2";
     await pool.query(query, [estado, id]);
 
     res.json({ message: "Estado de la tarea actualizado exitosamente." });
