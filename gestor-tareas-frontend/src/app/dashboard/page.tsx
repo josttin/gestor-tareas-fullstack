@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TasksStatusPieChart } from "@/components/charts/TasksStatusPieChart";
 import { TasksByDeptBarChart } from "@/components/charts/TasksByDeptBarChart";
+import { TasksByUserBarChart } from "@/components/charts/TasksByUserBarChart";
+import { AvgTimeBarChart } from "@/components/charts/AvgTimeBarChart";
 
 // --- INTERFACES ---
 interface Task {
@@ -27,6 +29,7 @@ interface Task {
     descripcion: string;
     estado: 'pendiente' | 'en_progreso' | 'completada';
     nombre_asignado: string;
+    fecha_limite: string;
 }
 interface Employee {
     id: number;
@@ -36,6 +39,7 @@ interface Employee {
 interface Department {
     id: number;
     nombre: string;
+    lider_id: number | null;
 }
 interface Solicitud {
     id: number;
@@ -67,6 +71,21 @@ interface TasksByDepartment {
     count: string;
 }
 
+interface TasksByUser {
+    name: string;
+    count: string;
+}
+
+interface AvgCompletionTime {
+    name: string;
+    avg_duration: {
+        days?: number;
+        hours?: number;
+        minutes?: number;
+        seconds?: number;
+    } | null;
+}
+
 export default function DashboardPage() {
     const { user, logout } = useAuth();
     const router = useRouter();
@@ -80,7 +99,9 @@ export default function DashboardPage() {
     const [mySolicitudes, setMySolicitudes] = useState<Solicitud[]>([]);
     const [stats, setStats] = useState<{
         tasksByStatus: TasksByStatus[],
-        tasksByDepartment: TasksByDepartment[]
+        tasksByDepartment: TasksByDepartment[],
+        tasksCompletedByUser: TasksByUser[],
+        avgCompletionTime: AvgCompletionTime[]
     } | null>(null);
     const [newTask, setNewTask] = useState({ titulo: '', descripcion: '', asignado_id: '', departamento_id: '' });
     const [newDepartmentName, setNewDepartmentName] = useState('');
@@ -109,7 +130,7 @@ export default function DashboardPage() {
                     api.get('/usuarios/empleados'),
                     api.get('/departamentos'),
                     api.get('/solicitudes'),
-                    api.get('/dashboard/stats') // <-- Petición nueva
+                    api.get('/dashboard/stats')
                 ]);
 
                 setTasksData(tasksRes.data);
@@ -257,6 +278,17 @@ export default function DashboardPage() {
         }
     };
 
+    const handleAssignLeader = async (departmentId: number, leaderId: string) => {
+        try {
+            const lider_id = leaderId ? parseInt(leaderId) : null;
+            await api.put(`/departamentos/${departmentId}/lider`, { lider_id });
+            toast.success("Líder de departamento actualizado.");
+            fetchData();
+        } catch (error) {
+            toast.error("Error al asignar el líder.");
+        }
+    };
+
     return (
         <div className="p-8">
             <div className="flex justify-between items-center mb-8">
@@ -275,14 +307,24 @@ export default function DashboardPage() {
                     {stats && (
                         <Card className="col-span-1 md:col-span-2 mb-8">
                             <CardHeader><CardTitle>Métricas Generales</CardTitle></CardHeader>
+                            {/* Cambia a 2 columnas */}
                             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <h3 className="text-lg font-semibold mb-2 text-center">Tareas por Estado</h3>
                                     <TasksStatusPieChart data={stats.tasksByStatus} />
                                 </div>
                                 <div>
+                                    <h3 className="text-lg font-semibold mb-2 text-center">Completadas por Empleado</h3>
+                                    <TasksByUserBarChart data={stats.tasksCompletedByUser} />
+                                </div>
+                                <div>
                                     <h3 className="text-lg font-semibold mb-2 text-center">Tareas por Departamento</h3>
                                     <TasksByDeptBarChart data={stats.tasksByDepartment} />
+                                </div>
+                                {/* --- NUEVO GRÁFICO --- */}
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-2 text-center">Tiempo Promedio por Tarea</h3>
+                                    <AvgTimeBarChart data={stats.avgCompletionTime} />
                                 </div>
                             </CardContent>
                         </Card>
@@ -338,6 +380,7 @@ export default function DashboardPage() {
                                             <TableHead>Título</TableHead>
                                             <TableHead>Asignado a</TableHead>
                                             <TableHead>Estado</TableHead>
+                                            <TableHead>Fecha Límite</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -350,6 +393,9 @@ export default function DashboardPage() {
                                                 </TableCell>
                                                 <TableCell>{task.nombre_asignado}</TableCell>
                                                 <TableCell>{task.estado}</TableCell>
+                                                <TableCell>
+                                                    {task.fecha_limite ? new Date(task.fecha_limite).toLocaleDateString() : 'N/A'}
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -419,6 +465,7 @@ export default function DashboardPage() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Nombre</TableHead>
+                                            <TableHead>Líder Asignado</TableHead>
                                             <TableHead className="text-right">Acciones</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -426,6 +473,19 @@ export default function DashboardPage() {
                                         {departments.map((dept) => (
                                             <TableRow key={dept.id}>
                                                 <TableCell>{dept.nombre}</TableCell>
+                                                {/* --- NUEVO SELECT PARA LÍDER --- */}
+                                                <TableCell>
+                                                    <select
+                                                        value={dept.lider_id || ''}
+                                                        onChange={(e) => handleAssignLeader(dept.id, e.target.value)}
+                                                        className="p-2 rounded border"
+                                                    >
+                                                        <option value="">Sin Líder</option>
+                                                        {employees.map(emp => (
+                                                            <option key={emp.id} value={emp.id}>{emp.nombre_completo}</option>
+                                                        ))}
+                                                    </select>
+                                                </TableCell>
                                                 <TableCell className="text-right">
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
@@ -519,11 +579,14 @@ export default function DashboardPage() {
                                         <TableHead>Título</TableHead>
                                         <TableHead>Estado</TableHead>
                                         <TableHead>Acciones</TableHead>
+                                        <TableHead>Fecha Límite</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {myTasks.length === 0 ? (
-                                        <TableRow><TableCell colSpan={3} className="text-center">No tienes tareas asignadas.</TableCell></TableRow>
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-center h-24">No tienes tareas asignadas.</TableCell>
+                                        </TableRow>
                                     ) : (
                                         myTasks.map((task) => (
                                             <TableRow key={task.id}>
@@ -556,6 +619,9 @@ export default function DashboardPage() {
                                                             </DialogFooter>
                                                         </DialogContent>
                                                     </Dialog>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {task.fecha_limite ? new Date(task.fecha_limite).toLocaleDateString() : 'N/A'}
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -593,11 +659,14 @@ export default function DashboardPage() {
                                         <TableHead>Título</TableHead>
                                         <TableHead>Descripción</TableHead>
                                         <TableHead>Estado</TableHead>
+                                        <TableHead>Fecha Límite</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {departmentTasks.length === 0 ? (
-                                        <TableRow><TableCell colSpan={3} className="text-center">No hay tareas asignadas a tu departamento.</TableCell></TableRow>
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-center h-24">No hay tareas asignadas a tu departamento.</TableCell>
+                                        </TableRow>
                                     ) : (
                                         departmentTasks.map(task => (
                                             <TableRow key={task.id}>
@@ -607,7 +676,20 @@ export default function DashboardPage() {
                                                     </Link>
                                                 </TableCell>
                                                 <TableCell>{task.descripcion}</TableCell>
-                                                <TableCell>{task.estado}</TableCell>
+                                                <TableCell>
+                                                    <select
+                                                        value={task.estado}
+                                                        onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                                                        className="p-2 rounded border bg-white dark:bg-gray-800"
+                                                    >
+                                                        <option value="pendiente">Pendiente</option>
+                                                        <option value="en_progreso">En Progreso</option>
+                                                        <option value="completada">Completada</option>
+                                                    </select>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {task.fecha_limite ? new Date(task.fecha_limite).toLocaleDateString() : 'N/A'}
+                                                </TableCell>
                                             </TableRow>
                                         ))
                                     )}
