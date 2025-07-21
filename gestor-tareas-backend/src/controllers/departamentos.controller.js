@@ -70,3 +70,20 @@ export const deleteDepartamento = async (req, res) => {
     res.status(500).json({ message: "Error al eliminar el departamento." });
   }
 };
+
+export const asignarLider = async (req, res) => {
+  const { id } = req.params;
+  const { lider_id } = req.body;
+  try {
+    const { rows } = await pool.query(
+      "UPDATE departamentos SET lider_id = $1 WHERE id = $2 RETURNING *",
+      [lider_id, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Departamento no encontrado." });
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: "Error al asignar el líder." });
+  }
+};

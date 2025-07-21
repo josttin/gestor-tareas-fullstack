@@ -3,31 +3,46 @@ import pool from "../config/db.js";
 
 export const getDashboardStats = async (req, res) => {
   try {
-    // 1. Tareas por Estado (pendiente, en_progreso, completada)
-    const tasksByStatusQuery = `
-      SELECT estado, COUNT(*) as count 
-      FROM tareas 
-      GROUP BY estado;
+    const tasksByStatusQuery = `SELECT estado, COUNT(*) as count FROM tareas GROUP BY estado;`;
+
+    const tasksByDepartmentQuery = `SELECT d.nombre, COUNT(t.id) as count FROM departamentos d LEFT JOIN tareas t ON d.id = t.departamento_id GROUP BY d.nombre;`;
+
+    const tasksByUserQuery = `
+      SELECT u.nombre_completo as name, COUNT(t.id) as count 
+      FROM tareas t 
+      JOIN usuarios u ON t.asignado_id = u.id 
+      WHERE t.estado = 'completada' 
+      GROUP BY u.nombre_completo 
+      ORDER BY count DESC;
     `;
 
-    // 2. Tareas por Departamento
-    const tasksByDepartmentQuery = `
-      SELECT d.nombre, COUNT(t.id) as count 
-      FROM departamentos d 
-      LEFT JOIN tareas t ON d.id = t.departamento_id 
-      GROUP BY d.nombre;
+    const avgTimeToCompleteQuery = `
+      SELECT 
+        u.nombre_completo as name, 
+        AVG(t.fecha_completada - t.fecha_creacion) as avg_duration 
+      FROM tareas t 
+      JOIN usuarios u ON t.asignado_id = u.id 
+      WHERE t.estado = 'completada' AND t.fecha_completada IS NOT NULL
+      GROUP BY u.nombre_completo;
     `;
 
-    // Ejecutamos ambas consultas en paralelo para mayor eficiencia
-    const [tasksByStatusResult, tasksByDepartmentResult] = await Promise.all([
+    const [
+      tasksByStatusResult,
+      tasksByDepartmentResult,
+      tasksByUserResult,
+      avgTimeToCompleteResult,
+    ] = await Promise.all([
       pool.query(tasksByStatusQuery),
       pool.query(tasksByDepartmentQuery),
+      pool.query(tasksByUserQuery),
+      pool.query(avgTimeToCompleteQuery),
     ]);
 
-    // Formateamos la respuesta
     const stats = {
       tasksByStatus: tasksByStatusResult.rows,
       tasksByDepartment: tasksByDepartmentResult.rows,
+      tasksCompletedByUser: tasksByUserResult.rows,
+      avgCompletionTime: avgTimeToCompleteResult.rows,
     };
 
     res.json(stats);

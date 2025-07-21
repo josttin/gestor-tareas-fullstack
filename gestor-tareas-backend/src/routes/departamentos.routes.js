@@ -5,6 +5,7 @@ import {
   createDepartamento,
   updateDepartamento,
   deleteDepartamento,
+  asignarLider,
 } from "../controllers/departamentos.controller.js";
 import { protegerRuta, autorizarJefe } from "../middleware/auth.middleware.js";
 
@@ -17,5 +18,6 @@ router.get("/", getDepartamentos);
 router.post("/", createDepartamento);
 router.put("/:id", updateDepartamento);
 router.delete("/:id", deleteDepartamento);
+router.put("/:id/lider", asignarLider);
 
 export default router;

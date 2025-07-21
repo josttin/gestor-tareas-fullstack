@@ -82,7 +82,6 @@ export const actualizarEstadoTarea = async (req, res) => {
         .json({ message: "El campo estado es obligatorio." });
     }
 
-    // Corregido: Usa $1 y maneja el resultado de pg
     const { rows: tareas } = await pool.query(
       "SELECT * FROM tareas WHERE id = $1",
       [id]
@@ -92,18 +91,34 @@ export const actualizarEstadoTarea = async (req, res) => {
     }
 
     const tarea = tareas[0];
+    let tienePermiso = false;
 
-    if (tarea.asignado_id !== usuarioId) {
-      return res
-        .status(403)
-        .json({ message: "Acceso denegado. No puedes modificar esta tarea." });
+    // Permiso 1: El usuario es el asignado directamente a la tarea
+    if (tarea.asignado_id === usuarioId) {
+      tienePermiso = true;
     }
 
-    // Corregido: Usa $1, $2
-    await pool.query("UPDATE tareas SET estado = $1 WHERE id = $2", [
-      estado,
-      id,
-    ]);
+    // Permiso 2: La tarea es de un departamento y el usuario es el líder de ese departamento
+    if (!tienePermiso && tarea.departamento_id) {
+      const { rows: deptos } = await pool.query(
+        "SELECT lider_id FROM departamentos WHERE id = $1",
+        [tarea.departamento_id]
+      );
+      if (deptos.length > 0 && deptos[0].lider_id === usuarioId) {
+        tienePermiso = true;
+      }
+    }
+
+    if (!tienePermiso) {
+      return res
+        .status(403)
+        .json({ message: "No tienes permiso para modificar esta tarea." });
+    }
+
+    // Si tiene permiso, actualiza la tarea
+    let query =
+      "UPDATE tareas SET estado = $1, fecha_completada = CASE WHEN $1 = 'completada' THEN NOW() ELSE NULL END WHERE id = $2";
+    await pool.query(query, [estado, id]);
 
     res.json({ message: "Estado de la tarea actualizado exitosamente." });
   } catch (error) {
