@@ -25,28 +25,36 @@ export const getComentariosPorTarea = async (req, res) => {
 export const createComentario = async (req, res) => {
   const { tareaId } = req.params;
   const { contenido } = req.body;
-  const usuario_id = req.user.id; // El ID viene del token
+  const usuario_id = req.user.id;
+  const archivo = req.file; // El archivo viene de Multer
 
-  if (!contenido) {
+  // Un comentario debe tener o texto o un archivo
+  if (!contenido && !archivo) {
     return res
       .status(400)
-      .json({ message: "El contenido no puede estar vacío." });
+      .json({ message: "El comentario no puede estar vacío." });
   }
 
   try {
-    // Añadimos 'fecha_creacion' a la consulta y el nuevo parámetro $4
-    const result = await pool.query(
-      "INSERT INTO comentarios (contenido, tarea_id, usuario_id, fecha_creacion) VALUES ($1, $2, $3, $4) RETURNING *",
-      [contenido, tareaId, usuario_id, new Date()] // <-- Pasamos la fecha actual del servidor
+    const { rows } = await pool.query(
+      `INSERT INTO comentarios 
+        (contenido, tarea_id, usuario_id, nombre_archivo, url, public_id) 
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [
+        contenido || null,
+        tareaId,
+        usuario_id,
+        archivo?.originalname || null,
+        archivo?.path || null,
+        archivo?.filename || null,
+      ]
     );
 
-    // Para que se vea igual que los otros, unimos los datos del autor
-    const nuevoComentario = result.rows[0];
+    const nuevoComentario = rows[0];
     nuevoComentario.autor = req.user.nombre;
-
     res.status(201).json(nuevoComentario);
   } catch (error) {
-    console.error("Error detallado en createComentario:", error);
+    console.error("Error al crear comentario:", error);
     res.status(500).json({ message: "Error al crear el comentario." });
   }
 };

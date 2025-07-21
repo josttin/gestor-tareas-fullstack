@@ -5,15 +5,21 @@ import {
   createComentario,
 } from "../controllers/comentarios.controller.js";
 import { protegerRuta } from "../middleware/auth.middleware.js";
+import upload from "../middleware/upload.middleware.js"; // <-- Importa Multer
 
 const router = Router();
 
-// Ambas rutas solo requieren que el usuario esté logueado
 router.get(
   "/tareas/:tareaId/comentarios",
   protegerRuta,
   getComentariosPorTarea
 );
-router.post("/tareas/:tareaId/comentarios", protegerRuta, createComentario);
+// Añadimos el middleware de subida de archivos aquí
+router.post(
+  "/tareas/:tareaId/comentarios",
+  protegerRuta,
+  upload.single("archivo"),
+  createComentario
+);
 
 export default router;

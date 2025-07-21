@@ -1,31 +1,44 @@
 // src/app/dashboard/tarea/[id]/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import Link from 'next/link';
 
-// Interfaces para los datos
-interface Task { id: number; titulo: string; descripcion: string; estado: string; }
-interface Comment { id: number; contenido: string; autor: string; fecha_creacion: string; }
+interface Task {
+    id: number;
+    titulo: string;
+    descripcion: string;
+    estado: 'pendiente' | 'en_progreso' | 'completada';
+}
+interface Comment {
+    id: number;
+    contenido: string | null;
+    autor: string;
+    fecha_creacion: string;
+    // Propiedades del archivo adjunto
+    nombre_archivo: string | null;
+    url: string | null;
+}
 
 export default function TareaDetailPage() {
-    const { user } = useAuth();
     const params = useParams();
     const taskId = params.id;
-
     const [task, setTask] = useState<Task | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState('');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
+        if (!taskId) return;
         try {
             const [taskRes, commentsRes] = await Promise.all([
                 api.get(`/tareas/${taskId}`),
@@ -37,29 +50,30 @@ export default function TareaDetailPage() {
             console.error("Error al cargar los datos de la tarea", error);
             toast.error("No se pudo cargar la información de la tarea.");
         }
-    };
-
-    useEffect(() => {
-        if (taskId) {
-            fetchData();
-        }
     }, [taskId]);
+    useEffect(() => { if (taskId) { fetchData(); } }, [fetchData, taskId]);
 
     const handleAddComment = async () => {
-        if (!newComment) return;
+        if (!newComment && !selectedFile) return;
+
+        const formData = new FormData();
+        if (newComment) formData.append('contenido', newComment);
+        if (selectedFile) formData.append('archivo', selectedFile);
+
         try {
-            await api.post(`/tareas/${taskId}/comentarios`, { contenido: newComment });
+            await api.post(`/tareas/${taskId}/comentarios`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
             setNewComment('');
-            fetchData(); // Recargar comentarios
+            setSelectedFile(null);
+            fetchData();
             toast.success("Comentario añadido.");
         } catch (error) {
             toast.error("No se pudo añadir el comentario.");
         }
     };
 
-    if (!task) {
-        return <div>Cargando...</div>;
-    }
+    if (!task) return <div>Cargando...</div>;
 
     return (
         <div className="p-8">
@@ -78,31 +92,39 @@ export default function TareaDetailPage() {
             <Card className="mt-8">
                 <CardHeader><CardTitle>Informes y Comentarios</CardTitle></CardHeader>
                 <CardContent>
-                    <div className="space-y-4">
+                    {/* LISTA DE COMENTARIOS Y ARCHIVOS */}
+                    <div className="space-y-4 mb-6">
                         {comments.map(comment => (
                             <div key={comment.id} className="flex items-start gap-4">
-                                <Avatar>
-                                    <AvatarFallback>{comment.autor.substring(0, 2)}</AvatarFallback>
-                                </Avatar>
+                                <Avatar><AvatarFallback>{comment.autor.substring(0, 2)}</AvatarFallback></Avatar>
                                 <div className="w-full">
                                     <div className="flex justify-between items-center">
                                         <p className="font-semibold">{comment.autor}</p>
                                         <p className="text-xs text-gray-500">{new Date(comment.fecha_creacion).toLocaleString()}</p>
                                     </div>
-                                    <p className="p-3 bg-gray-100 rounded-md mt-1">{comment.contenido}</p>
+                                    {comment.contenido && <p className="p-3 bg-gray-100 rounded-md mt-1 dark:bg-gray-800">{comment.contenido}</p>}
+                                    {comment.url && (
+                                        <a href={comment.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline mt-1 block">
+                                            {comment.nombre_archivo}
+                                        </a>
+                                    )}
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    <div className="mt-6">
+                    {/* NUEVO FORMULARIO UNIFICADO */}
+                    <div className="border-t pt-4">
                         <Textarea
                             placeholder="Escribe tu informe o comentario aquí..."
                             value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewComment(e.target.value)}
                             className="mb-2"
                         />
-                        <Button onClick={handleAddComment}>Añadir Comentario</Button>
+                        <div className="flex justify-between items-center">
+                            <Input type="file" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} className="max-w-xs" />
+                            <Button onClick={handleAddComment}>Añadir</Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
