@@ -115,10 +115,22 @@ export const actualizarEstadoTarea = async (req, res) => {
         .json({ message: "No tienes permiso para modificar esta tarea." });
     }
 
-    // Si tiene permiso, actualiza la tarea
-    let query =
-      "UPDATE tareas SET estado = $1, fecha_completada = CASE WHEN $1 = 'completada'::varchar THEN NOW() ELSE NULL END WHERE id = $2";
-    await pool.query(query, [estado, id]);
+    // --- LÓGICA DE ACTUALIZACIÓN MODIFICADA ---
+    let query;
+    const params = [];
+
+    if (estado === "completada") {
+      query =
+        "UPDATE tareas SET estado = $1, fecha_completada = NOW() WHERE id = $2";
+      params.push(estado, id);
+    } else {
+      query =
+        "UPDATE tareas SET estado = $1, fecha_completada = NULL WHERE id = $2";
+      params.push(estado, id);
+    }
+
+    await pool.query(query, params);
+    // ----------------------------------------
 
     res.json({ message: "Estado de la tarea actualizado exitosamente." });
   } catch (error) {
