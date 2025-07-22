@@ -7,6 +7,9 @@ import {
   verPerfil,
   obtenerEmpleados,
   asignarDepartamento,
+  getAllUsers,
+  updateUser,
+  deleteUser,
 } from "../controllers/usuarios.controller.js";
 // Importa los middlewares sin duplicados
 import { protegerRuta, autorizarJefe } from "../middleware/auth.middleware.js";
@@ -28,5 +31,10 @@ router.put(
   autorizarJefe,
   asignarDepartamento
 );
+
+// --- Rutas de Administración (Solo para Jefes) ---
+router.get("/", protegerRuta, autorizarJefe, getAllUsers);
+router.put("/:id", protegerRuta, autorizarJefe, updateUser);
+router.delete("/:id", protegerRuta, autorizarJefe, deleteUser);
 
 export default router;

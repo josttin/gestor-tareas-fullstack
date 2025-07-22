@@ -159,3 +159,65 @@ export const asignarDepartamento = async (req, res) => {
     res.status(500).json({ message: "Error al asignar el departamento." });
   }
 };
+
+// Obtener todos los usuarios (para el admin)
+export const getAllUsers = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, nombre_completo, email, rol, departamento_id FROM usuarios ORDER BY id ASC"
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener los usuarios." });
+  }
+};
+
+// Actualizar un usuario (para el admin)
+export const updateUser = async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body; // Obtenemos solo los campos que se envían
+
+  try {
+    // 1. Obtenemos los datos actuales del usuario desde la BD
+    const userResult = await pool.query(
+      "SELECT * FROM usuarios WHERE id = $1",
+      [id]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: "Usuario no encontrado." });
+    }
+    const currentUser = userResult.rows[0];
+
+    // 2. Fusionamos los datos actuales con los nuevos que llegaron
+    const updatedUser = {
+      nombre_completo: updates.nombre_completo || currentUser.nombre_completo,
+      email: updates.email || currentUser.email,
+      rol: updates.rol || currentUser.rol,
+    };
+
+    // 3. Ejecutamos la actualización con el objeto completo y fusionado
+    const { rows } = await pool.query(
+      "UPDATE usuarios SET nombre_completo = $1, email = $2, rol = $3 WHERE id = $4 RETURNING id, nombre_completo, email, rol",
+      [updatedUser.nombre_completo, updatedUser.email, updatedUser.rol, id]
+    );
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("Error al actualizar usuario:", error);
+    res.status(500).json({ message: "Error al actualizar el usuario." });
+  }
+};
+
+// Eliminar un usuario (para el admin)
+export const deleteUser = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("DELETE FROM usuarios WHERE id = $1", [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Usuario no encontrado." });
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ message: "Error al eliminar el usuario." });
+  }
+};

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { FormattedDate } from '@/components/FormattedDate';
 import Link from 'next/link';
 
 interface Task {
@@ -100,7 +101,7 @@ export default function TareaDetailPage() {
                                 <div className="w-full">
                                     <div className="flex justify-between items-center">
                                         <p className="font-semibold">{comment.autor}</p>
-                                        <p className="text-xs text-gray-500">{new Date(comment.fecha_creacion).toLocaleString()}</p>
+                                        <p className="text-xs text-gray-500"><FormattedDate dateString={comment.fecha_creacion} /></p>
                                     </div>
                                     {comment.contenido && <p className="p-3 bg-gray-100 rounded-md mt-1 dark:bg-gray-800">{comment.contenido}</p>}
                                     {comment.url && (

@@ -424,7 +424,10 @@ export default function DashboardPage() {
                         </Card>
 
                         <Card>
-                            <CardHeader><CardTitle>Gestión de Empleados</CardTitle></CardHeader>
+                            <CardHeader><CardTitle>Gestión de Empleados</CardTitle>
+                                <Link href="/dashboard/admin/usuarios">
+                                    <Button variant="outline">Administrar Usuarios</Button>
+                                </Link></CardHeader>
                             <CardContent>
                                 <Table>
                                     <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Departamento Asignado</TableHead></TableRow></TableHeader>
