@@ -22,7 +22,28 @@ const PORT = process.env.PORT || 3000;
 testConnection();
 
 // Middleware para entender JSON
-app.use(cors());
+// --- INICIO: NUEVA CONFIGURACIÓN DE CORS ---
+const allowedOrigins = [
+  process.env.FRONTEND_URL, // Tu URL de Vercel irá aquí
+  "http://localhost:3000", // Para desarrollo local
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permite peticiones sin 'origin' (como las de Postman o apps móviles)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg =
+        "La política de CORS para este sitio no permite acceso desde el origen especificado.";
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+};
+
+app.use(cors(corsOptions));
+// --- FIN: NUEVA CONFIGURACIÓN DE CORS ---
 app.use(express.json());
 
 // Ruta de prueba
