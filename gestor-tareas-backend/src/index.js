@@ -11,6 +11,8 @@ import deptoRoutes from "./routes/departamentos.routes.js";
 import solicitudRoutes from "./routes/solicitudes.routes.js";
 import comentarioRoutes from "./routes/comentarios.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
+import compromisoRoutes from "./routes/compromisos.routes.js";
+import agendaRoutes from "./routes/agenda.routes.js";
 
 // Crear la app de Express
 const app = express();
@@ -35,6 +37,8 @@ app.use("/api/departamentos", deptoRoutes);
 app.use("/api/solicitudes", solicitudRoutes);
 app.use("/api", comentarioRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/compromisos", compromisoRoutes);
+app.use("/api/agenda", agendaRoutes);
 
 // Iniciar el servidor
 app.listen(PORT, () => {
